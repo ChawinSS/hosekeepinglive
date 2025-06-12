@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dropzone Results</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+      background: #fafafa;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .zone {
+      margin-bottom: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .zone h3 {
+      flex-basis: 100%;
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      color: #333;
+    }
+
+    .zone div {
+      padding: 8px 12px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Live Dropzone Overview</h2>
+<div id="results"></div>
+
+<script>
+  const BIN_ID = "684b3bda8960c979a5a8d311";
+  const API_KEY = "$2a$10$GsyfKZ.Rj5ue5Jl1IIMIsuO5MbDqmnRP/a8YOROcGkeu02gzwkf/u";
+  const URL = `https://api.jsonbin.io/v3/b/${BIN_ID}/latest`;
+
+  const ZONE_NAMES = {
+    zone1: "Abreise",
+    zone2: "Bleibe geworden",
+    zone3: "Late Checkout 14Uhr",
+    zone4: "Late Checkout 16Uhr"
+  };
+
+  async function updateResults() {
+    const container = document.getElementById("results");
+    container.innerHTML = "";
+
+    try {
+      const res = await fetch(URL, {
+        headers: { "X-Master-Key": API_KEY }
+      });
+      const { record } = await res.json();
+
+      const grouped = {};
+      for (const [itemId, zoneId] of Object.entries(record.positions || {})) {
+        if (!ZONE_NAMES[zoneId]) continue;
+        if (!grouped[zoneId]) grouped[zoneId] = [];
+        grouped[zoneId].push(itemId.split("-").pop());
+      }
+
+      for (const [zoneId, items] of Object.entries(grouped)) {
+        const zoneDiv = document.createElement("div");
+        zoneDiv.className = "zone";
+
+        const title = document.createElement("h3");
+        title.textContent = ZONE_NAMES[zoneId];
+        zoneDiv.appendChild(title);
+
+        items.sort().forEach(item => {
+          const el = document.createElement("div");
+          el.textContent = item;
+          zoneDiv.appendChild(el);
+        });
+
+        container.appendChild(zoneDiv);
+      }
+
+    } catch (err) {
+      document.getElementById("results").textContent = "Error loading data.";
+      console.error(err);
+    }
+  }
+
+  updateResults();
+  setInterval(updateResults, 5000);
+</script>
+
+</body>
+</html>
