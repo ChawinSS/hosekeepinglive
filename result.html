@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dropzone Results</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0;
+      background: #fafafa;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .zone {
+      margin-bottom: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .zone h3 {
+      flex-basis: 100%;
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      color: #333;
+    }
+
+    .zone div {
+      padding: 8px 12px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+  </style>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDLXZ8Q6QGD_MHKTMa-s8Pcu84S5odm1r4",
+      authDomain: "housekeepinglivev2.firebaseapp.com",
+      databaseURL: "https://housekeepinglivev2-default-rtdb.firebaseio.com",
+      projectId: "housekeepinglivev2",
+      storageBucket: "housekeepinglivev2.appspot.com",
+      messagingSenderId: "1450429165",
+      appId: "1:1450429165:web:ab8184212ab1603b665ae4",
+      measurementId: "G-J6ZMGCDHYQ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const ZONE_NAMES = {
+      zone1: "Abreise",
+      zone2: "Bleibe geworden",
+      zone3: "Late Checkout 14Uhr",
+      zone4: "Late Checkout 16Uhr",
+      zone5: "Buff",
+      zone6: "Bitte Check",
+      zone7: "Handtuch",
+      zone8: "Klopapier",
+      zone9: "Seife",
+      zone10: "Bettwäsche",
+      zone11: "Bettdecke"
+    };
+
+    const resultsContainer = document.getElementById("results");
+
+    function renderZones(positions) {
+      resultsContainer.innerHTML = "";
+      const grouped = {};
+
+      for (const [itemId, zoneId] of Object.entries(positions || {})) {
+        if (!ZONE_NAMES[zoneId]) continue;
+        if (!grouped[zoneId]) grouped[zoneId] = [];
+        grouped[zoneId].push(itemId.split("-").pop());
+      }
+
+      for (const [zoneId, items] of Object.entries(grouped)) {
+        const zoneDiv = document.createElement("div");
+        zoneDiv.className = "zone";
+
+        const title = document.createElement("h3");
+        title.textContent = ZONE_NAMES[zoneId];
+        zoneDiv.appendChild(title);
+
+        items.sort().forEach(item => {
+          const el = document.createElement("div");
+          el.textContent = item;
+          zoneDiv.appendChild(el);
+        });
+
+        resultsContainer.appendChild(zoneDiv);
+      }
+    }
+
+    // Realtime listener
+    onValue(ref(db, "roomPositions"), (snapshot) => {
+      const data = snapshot.val();
+      if (data?.positions) {
+        renderZones(data.positions);
+      }
+    });
+  </script>
+</head>
+<body>
+  <h2>Live Dropzone Overview</h2>
+  <div id="results">Loading...</div>
+</body>
+</html>

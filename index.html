@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Room Scheduler</title>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    select, button { padding: 10px; font-size: 16px; margin: 10px; }
+    .item {
+      width: 120px;
+      padding: 10px;
+      background-color: #cce5ff;
+      margin: 5px;
+      border: 1px solid #333;
+      cursor: move;
+      display: inline-block;
+    }
+    .dropzone {
+      width: 220px;
+      min-height: 150px;
+      margin: 10px;
+      border: 2px dashed #999;
+      display: inline-block;
+      vertical-align: top;
+      padding: 10px;
+    }
+    .dropzone.over { border-color: green; }
+  </style>
+</head>
+<body>
+
+  <h2>Hotel Room Drag & Drop (Firebase Realtime)</h2>
+
+  <select id="floorSelect">
+    <option value="">-- Select Floor --</option>
+    <option value="cat1">Floor 1</option>
+    <option value="cat2">Floor 2</option>
+    <option value="cat3">Floor 3</option>
+    <option value="cat4">Floor 4</option>
+    <option value="cat5">Floor 5</option>
+    <option value="cat6">Floor 6</option>
+    <option value="cat7">Floor 7</option>
+    <option value="cat8">Floor 8</option>
+  </select>
+
+  <button onclick="clearAll()">Clear All</button>
+
+  <div id="itemsContainer"></div>
+
+  <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;">
+    <div><div style="font-weight: bold;">Abreise Heute</div><div class="dropzone" id="zone1"></div></div>
+    <div><div style="font-weight: bold;">Bleibe geworden</div><div class="dropzone" id="zone2"></div></div>
+    <div><div style="font-weight: bold;">Late Checkout 14Uhr</div><div class="dropzone" id="zone3"></div></div>
+    <div><div style="font-weight: bold;">Late Checkout 16Uhr</div><div class="dropzone" id="zone4"></div></div>
+    <div><div style="font-weight: bold;">Buff</div><div class="dropzone" id="zone5"></div></div>
+    <div><div style="font-weight: bold;">Bitte Check</div><div class="dropzone" id="zone6"></div></div>
+    <div><div style="font-weight: bold;">Handtuch</div><div class="dropzone" id="zone7"></div></div>
+    <div><div style="font-weight: bold;">Klopapier</div><div class="dropzone" id="zone8"></div></div>
+    <div><div style="font-weight: bold;">Seife</div><div class="dropzone" id="zone9"></div></div>
+    <div><div style="font-weight: bold;">Bettwäsche</div><div class="dropzone" id="zone10"></div></div>
+    <div><div style="font-weight: bold;">Bettdecke</div><div class="dropzone" id="zone11"></div></div>
+  </div>
+
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLXZ8Q6QGD_MHKTMa-s8Pcu84S5odm1r4",
+    authDomain: "housekeepinglivev2.firebaseapp.com",
+    databaseURL: "https://housekeepinglivev2-default-rtdb.firebaseio.com",
+    projectId: "housekeepinglivev2",
+    storageBucket: "housekeepinglivev2.appspot.com",
+    messagingSenderId: "1450429165",
+    appId: "1:1450429165:web:ab8184212ab1603b665ae4"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let draggedItem = null;
+
+  const categories = {
+    cat1: ["101", "102", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "114", "116", "117", "118", "119", "120", "121", "122", "123", "124"],
+    cat2: ["201", "202", "203", "204", "205", "206", "207", "208", "209", "210", "211", "212", "214", "216", "217", "218", "219", "220", "221", "222", "223", "224"],
+    cat3: ["301", "302", "303", "304", "305", "306", "307", "308", "309", "310", "311", "312", "314", "316", "317", "318", "319", "320", "321", "322"],
+    cat4: ["401", "402", "403", "404", "405", "406", "407", "408", "409", "410", "411", "412", "414", "416", "417", "418", "419", "420", "421", "422"],
+    cat5: ["501", "502", "503", "504", "505", "506", "507", "508", "509", "510", "511", "512", "514", "516", "517", "518", "519", "520", "521", "522"],
+    cat6: ["601", "602", "603", "604", "605", "606", "607", "608", "609", "610", "611", "612", "614", "616", "617", "618", "619", "620"],
+    cat7: ["701", "702", "703", "704", "705", "706", "707", "708", "709", "710", "711", "712", "714", "716", "717", "718", "719", "720"],
+    cat8: ["801", "802", "803", "804", "805", "806", "807", "808", "809", "810", "811", "812", "814", "816", "817", "818", "819", "820"]
+  };
+
+  function createItem(id, text) {
+    const div = document.createElement("div");
+    div.id = id;
+    div.className = "item";
+    div.draggable = true;
+    div.innerHTML = `
+      <div style="font-weight: bold;">${text}</div>
+      <label style="display: block; font-size: 12px;">
+        <input type="checkbox" class="remark" /> checkedout
+      </label>
+    `;
+    div.addEventListener("dragstart", () => draggedItem = div);
+    return div;
+  }
+
+  document.getElementById("floorSelect").addEventListener("change", (event) => {
+    const val = event.target.value;
+    const container = document.getElementById("itemsContainer");
+    container.innerHTML = "";
+    if (categories[val]) {
+      categories[val].forEach(num => {
+        const id = `${val}-item-${num}`;
+        if (!document.getElementById(id)) {
+          container.appendChild(createItem(id, num));
+        }
+      });
+    }
+  });
+
+  document.querySelectorAll(".dropzone").forEach(zone => {
+    zone.addEventListener("dragover", e => {
+      e.preventDefault();
+      zone.classList.add("over");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+    zone.addEventListener("drop", () => {
+      if (draggedItem) {
+        zone.appendChild(draggedItem);
+        zone.classList.remove("over");
+        savePositions();
+      }
+    });
+  });
+
+  function getPositions() {
+    const pos = {};
+    document.querySelectorAll(".item").forEach(item => {
+      pos[item.id] = item.parentElement.id;
+    });
+    return pos;
+  }
+
+  function savePositions() {
+    const data = { timestamp: Date.now(), positions: getPositions() };
+    db.ref("roomPositions").set(data);
+  }
+
+  function loadPositions() {
+    db.ref("roomPositions").once("value", snapshot => {
+      const record = snapshot.val();
+      if (!record) return;
+
+      const now = new Date();
+      const resetTime = new Date();
+      resetTime.setHours(18, 0, 0, 0);
+      if (now > resetTime) {
+        db.ref("roomPositions").set({ timestamp: Date.now(), positions: {} });
+        return;
+      }
+
+      for (const [id, zoneId] of Object.entries(record.positions || {})) {
+        const text = id.split("-").pop();
+        const item = createItem(id, text);
+        const zone = document.getElementById(zoneId);
+        if (zone) zone.appendChild(item);
+      }
+    });
+  }
+
+  function clearAll() {
+    document.querySelectorAll(".dropzone").forEach(z => z.innerHTML = "");
+    document.getElementById("itemsContainer").innerHTML = "";
+    document.getElementById("floorSelect").selectedIndex = 0;
+    savePositions();
+  }
+
+  loadPositions();
+</script>
+
+</body>
+</html>
